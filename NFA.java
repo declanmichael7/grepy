@@ -27,6 +27,7 @@ public class NFA{
 		acceptStates.add(0);
 		int currentState = 0;
 		int nextState = 1;
+		int subExpStartState = 0;
 		while(pos<regex.length()){
 			if(Character.isLetterOrDigit(regex.charAt(pos))){
 				states.add(nextState);
@@ -36,7 +37,26 @@ public class NFA{
 				nextState++;
 				acceptStates.set(0, currentState);
 			}
-		pos++;
+			else if(regex.charAt(pos) == '('){
+				subExpStartState = currentState;
+				//check if there's a '+' in the subExpression, and create a start state for e-transitions if there is
+			}
+			else if(regex.charAt(pos) == ')'){
+				if(regex.charAt(pos+1) == '*'){
+					transition = new Transition(currentState, subExpStartState, 'e');
+					transitions.add(transition);
+					transition = new Transition(subExpStartState, currentState, 'e');
+					transitions.add(transition);
+					pos++;
+				}
+			}
+			else if(regex.charAt(pos) == '*' && Character.isLetterOrDigit(regex.charAt(pos-1))){
+					transition = new Transition(currentState, currentState-1, 'e');
+					transitions.add(transition);
+					transition = new Transition(currentState-1, currentState, 'e');
+					transitions.add(transition);
+			}
+		    pos++;
 		}
 		System.out.println(states);
 		System.out.println(acceptStates);
