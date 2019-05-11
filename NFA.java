@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Stack;
 
 public class NFA{
     public static void main(String[] args){
@@ -14,20 +15,34 @@ public class NFA{
 		else{
 			regex = regex.substring(0,regex.length()-1);
 		}
-		/*
-		//count how many +'s are in the regex so that our first state is zero
-		int pluscount = 0;
-	    for(int i = 0; int < regex.length(); i++){
-			if(regex.charAt(i) == '+'){
-				pluscount++;
-			}
-		}
-		*/
 		states.add(0);
 		acceptStates.add(0);
 		int currentState = 0;
 		int nextState = 1;
-		int subExpStartState = 0;
+		Stack<Integer> subExpStart = new Stack<>();
+		int depth = 0;
+		int i = 0;
+		boolean unionFlag = false;
+		while(i<regex.length()){
+			if(regex.charAt(i) == '+' && depth == 0){
+				unionFlag = true;
+			}
+			else if(regex.charAt(i) == '('){
+				depth++;
+			}
+			else if(regex.charAt(i) == ')'){
+				depth--;
+			}
+			i++;
+		}
+		if(unionFlag == true){
+			subExpStart.push(currentState);
+			states.add(nextState);
+			transition = new Transition(currentState, nextState, 'e');
+		    transitions.add(transition);
+			currentState++;
+			nextState++;
+		}
 		while(pos<regex.length()){
 			if(Character.isLetterOrDigit(regex.charAt(pos))){
 				states.add(nextState);
@@ -38,16 +53,37 @@ public class NFA{
 				acceptStates.set(0, currentState);
 			}
 			else if(regex.charAt(pos) == '('){
-				subExpStartState = currentState;
-				//check if there's a '+' in the subExpression, and create a start state for e-transitions if there is
+				subExpStart.push(currentState);
+				while(i<regex.length()){
+					if(regex.charAt(i) == '+' && depth == 0){
+						unionFlag = true;
+					}
+					else if(regex.charAt(i) == '('){
+						depth++;
+					}
+					else if(regex.charAt(i) == ')'){
+						depth--;
+					}
+					i++;
+				}
+				if(unionFlag == true){
+					states.add(nextState);
+					transition = new Transition(currentState, nextState, 'e');
+					transitions.add(transition);
+					currentState++;
+					nextState++;
+				}
 			}
 			else if(regex.charAt(pos) == ')'){
-				if(regex.charAt(pos+1) == '*'){
-					transition = new Transition(currentState, subExpStartState, 'e');
-					transitions.add(transition);
-					transition = new Transition(subExpStartState, currentState, 'e');
-					transitions.add(transition);
-					pos++;
+				if(pos+1<regex.length()){
+					if(regex.charAt(pos+1) == '*'){
+						transition = new Transition(currentState, subExpStart.peek(), 'e');
+						transitions.add(transition);
+						transition = new Transition(subExpStart.peek(), currentState, 'e');
+						transitions.add(transition);
+						pos++;
+					}
+					subExpStart.pop();
 				}
 			}
 			else if(regex.charAt(pos) == '*' && Character.isLetterOrDigit(regex.charAt(pos-1))){
@@ -55,6 +91,16 @@ public class NFA{
 					transitions.add(transition);
 					transition = new Transition(currentState-1, currentState, 'e');
 					transitions.add(transition);
+			}
+			else if(regex.charAt(pos) == '+'){
+				states.add(nextState);
+				transition = new Transition(subExpStart.peek(), nextState, 'e');
+				transitions.add(transition);
+				if(subExpStart.size()==1){
+					acceptStates.add(currentState);
+				}
+				currentState++;
+				nextState++;
 			}
 		    pos++;
 		}
@@ -67,8 +113,8 @@ public class NFA{
                     printTransition.getCharacter());
         }
     }
-
 }
+
 class Transition{
     private final int stateFrom;
     private final int stateTo;
