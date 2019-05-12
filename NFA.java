@@ -7,6 +7,7 @@ public class NFA{
         Transition transition;
 		ArrayList<Integer> states = new ArrayList<>();
 		ArrayList<Integer> acceptStates = new ArrayList<>();
+		Stack<Integer> unionEnd = new Stack<>();
 		String regex = args[0];
 		int pos = 0;
 		if(regex.charAt(regex.length()-1) != '$'){
@@ -46,12 +47,6 @@ public class NFA{
 				transition = new Transition(currentState,(currentState + 1),regex.charAt(pos));
 				transitions.add(transition);
 				currentState++;
-				if(acceptStates.size() == 0){
-					acceptStates.add(currentState);
-				}
-				else{
-					acceptStates.set(0, currentState);
-				}
 			}
 			else if(regex.charAt(pos) == '('){
 				subExpStart.push(currentState);
@@ -78,7 +73,27 @@ public class NFA{
 				}
 			}
 			else if(regex.charAt(pos) == ')'){
-				if(pos+1<regex.length()){
+				if(unionEnd.size()!=0){
+					if(unionEnd.peek()==subExpStart.size()){
+						unionEnd.pop();
+						transition= new Transition(currentState, unionEnd.peek(), '!');
+						transitions.add(transition);
+						if(regex.charAt(pos+1)=='*'){
+							transition = new Transition(unionEnd.peek(), subExpStart.peek(), '!');
+							transitions.add(transition);
+							transition = new Transition(subExpStart.peek(), unionEnd.peek(), '!');
+							transitions.add(transition);
+							pos++;
+						}
+						if(pos==regex.length()-1){
+							acceptStates.add(unionEnd.pop());
+						}
+						else{
+							unionEnd.pop();
+						}
+					}
+				}
+				if(pos < regex.length()-1){
 					if(regex.charAt(pos+1) == '*'){
 						transition = new Transition(currentState, subExpStart.peek(), '!');
 						transitions.add(transition);
@@ -86,8 +101,8 @@ public class NFA{
 						transitions.add(transition);
 						pos++;
 					}
-					subExpStart.pop();
 				}
+				subExpStart.pop();
 			}
 			else if(regex.charAt(pos) == '*' && Character.isLetterOrDigit(regex.charAt(pos-1))){
 					transition = new Transition(currentState, currentState-1, '!');
@@ -96,18 +111,25 @@ public class NFA{
 					transitions.add(transition);
 			}
 			else if(regex.charAt(pos) == '+'){
-				states.add((currentState + 1));
-				transition = new Transition(subExpStart.peek(), (currentState + 1), '!');
+				states.add(currentState+1);
+				transition = new Transition(currentState, (currentState + 1), '!');
 				transitions.add(transition);
-				if(subExpStart.size()==1){
-					acceptStates.add(currentState);
-				}
-				currentState++;
+				transition = new Transition(subExpStart.peek(), currentState+2, '!');
+				transitions.add(transition);
+				unionEnd.push(currentState+1);
+				unionEnd.push(subExpStart.size());
+				currentState+=2;
 			}
 		    pos++;
 		}
+		if(unionEnd.size()!=0){
+				unionEnd.pop();
+				transition= new Transition(currentState, unionEnd.peek(), '!');
+				transitions.add(transition);
+				acceptStates.add(unionEnd.pop());
+		}
 		if(acceptStates.size()==0){
-			acceptStates.add(0);
+			acceptStates.add(currentState);
 		}
 		System.out.println(states);
 		System.out.println(acceptStates);
