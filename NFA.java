@@ -78,18 +78,24 @@ public class NFA{
 						unionEnd.pop();
 						transition= new Transition(currentState, unionEnd.peek(), '!');
 						transitions.add(transition);
-						if(regex.charAt(pos+1)=='*'){
-							transition = new Transition(unionEnd.peek(), subExpStart.peek(), '!');
-							transitions.add(transition);
-							transition = new Transition(subExpStart.peek(), unionEnd.peek(), '!');
-							transitions.add(transition);
-							pos++;
+						if(pos<regex.length()-1){
+							if(regex.charAt(pos+1)=='*'){
+								transition = new Transition(unionEnd.peek(), subExpStart.peek(), '!');
+								transitions.add(transition);
+								transition = new Transition(subExpStart.peek(), unionEnd.peek(), '!');
+								transitions.add(transition);
+								pos++;
+							}
 						}
 						if(pos==regex.length()-1){
 							acceptStates.add(unionEnd.pop());
 						}
 						else{
+							states.add(currentState+1);
+							transition = new Transition(unionEnd.peek(), currentState+1, '!');
+							transitions.add(transition);
 							unionEnd.pop();
+							currentState++;
 						}
 					}
 				}
@@ -111,14 +117,42 @@ public class NFA{
 					transitions.add(transition);
 			}
 			else if(regex.charAt(pos) == '+'){
-				states.add(currentState+1);
-				transition = new Transition(currentState, (currentState + 1), '!');
-				transitions.add(transition);
-				transition = new Transition(subExpStart.peek(), currentState+2, '!');
-				transitions.add(transition);
-				unionEnd.push(currentState+1);
-				unionEnd.push(subExpStart.size());
-				currentState+=2;
+				unionFlag = false;
+				depth = 0;
+				i=pos-1;
+				while(i>0){
+					if(regex.charAt(i) == '+' && depth == 0){
+						unionFlag = true;
+					}
+					else if(regex.charAt(i) == '('){
+						depth--;
+					}
+					else if(regex.charAt(i) == ')'){
+						depth++;
+					}
+					i--;
+				}
+				if(unionFlag==true){
+					int temp = unionEnd.pop();
+					transition = new Transition(currentState, unionEnd.peek(), '!');
+					transitions.add(transition);
+					unionEnd.push(temp);
+					states.add(currentState+1);
+					transition = new Transition(subExpStart.peek(), currentState+1, '!');
+					transitions.add(transition);
+					currentState++;
+				}
+				else{
+					states.add(currentState+1);
+					transition = new Transition(currentState, (currentState + 1), '!');
+					transitions.add(transition);
+					states.add(currentState+2);
+					transition = new Transition(subExpStart.peek(), currentState+2, '!');
+					transitions.add(transition);
+					unionEnd.push(currentState+1);
+					unionEnd.push(subExpStart.size());
+					currentState+=2;
+				}
 			}
 		    pos++;
 		}
