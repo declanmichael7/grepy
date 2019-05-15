@@ -1,19 +1,49 @@
 import java.util.ArrayList;
 import java.util.Stack;
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
-public class NFA{
+public class Grepy{
     public static void main(String[] args){
+		ArrayList<Character> Alphabet = new ArrayList<>();
+		try {
+			Alphabet = Grepy.getAlphabet(args[1]);
+		} catch(FileNotFoundException e) {
+			System.out.println("File Not Found");
+		} catch(IOException e) {
+			System.out.println("File Not Found");
+		}
+		System.out.println(Alphabet);
+		ArrayList<Transition> transitions = new ArrayList<>();
+		ArrayList<Integer> states = new ArrayList<>();
+		ArrayList<Integer> acceptStates = new ArrayList<>();
+		NFA nfa = new NFA(states, acceptStates, transitions);
+		nfa = Grepy.regexToNFA(args[0]);
+		System.out.println(nfa.getStates() + "\n" + nfa.getAcceptStates()); 
+		int i=0;
+		transitions = nfa.getTransitions();
+		while(i<transitions.size()){
+            System.out.println(
+                    transitions.get(i).getStateFrom() + "\t " +
+                    transitions.get(i).getStateTo() + "\t" +
+                    transitions.get(i).getCharacter());
+			i++;
+        }
+		
+    }
+	public static NFA regexToNFA(String regex){
 		ArrayList<Transition> transitions = new ArrayList<>();
         Transition transition;
 		ArrayList<Integer> states = new ArrayList<>();
 		ArrayList<Integer> acceptStates = new ArrayList<>();
+		NFA nfa = new NFA(states, acceptStates, transitions);
 		Stack<Integer> unionEnd = new Stack<>();
-		String regex = args[0];
 		int pos = 0;
-		if(regex.charAt(regex.length()-1) != '$'){
-			System.out.println("Bad regex");
-		}
-		else{
+		if(regex.indexOf('$') !=-1){
 			regex = regex.substring(0,regex.indexOf('$'));
 		}
 		states.add(0);
@@ -42,13 +72,7 @@ public class NFA{
 			currentState++;
 		}
 		while(pos<regex.length()){
-			if(Character.isLetterOrDigit(regex.charAt(pos))){
-				states.add(currentState + 1);
-				transition = new Transition(currentState,(currentState + 1),regex.charAt(pos));
-				transitions.add(transition);
-				currentState++;
-			}
-			else if(regex.charAt(pos) == '('){
+			if(regex.charAt(pos) == '('){
 				subExpStart.push(currentState);
 				unionFlag = false;
 				depth = -1;
@@ -154,6 +178,12 @@ public class NFA{
 					currentState+=2;
 				}
 			}
+			else{
+				states.add(currentState + 1);
+				transition = new Transition(currentState,(currentState + 1),regex.charAt(pos));
+				transitions.add(transition);
+				currentState++;
+			}
 		    pos++;
 		}
 		if(unionEnd.size()!=0){
@@ -165,17 +195,50 @@ public class NFA{
 		if(acceptStates.size()==0){
 			acceptStates.add(currentState);
 		}
-		System.out.println(states);
-		System.out.println(acceptStates);
-        for (Transition printTransition : transitions){
-            System.out.println(
-                    printTransition.getStateFrom() + "\t " +
-                    printTransition.getStateTo() + "\t" +
-                    printTransition.getCharacter());
+		nfa.transitions = transitions;
+		nfa.states = states;
+		nfa.acceptStates = acceptStates;
+		return nfa;
         }
+    public static ArrayList<Character> getAlphabet(String filename) throws FileNotFoundException, IOException {
+        String fileName = filename;
+		ArrayList<Character> Alphabet = new ArrayList<Character>();
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                new FileInputStream(fileName), StandardCharsets.UTF_8));) {
+				String line;
+                while((line = br.readLine()) != null) {
+					int i =0;
+					while(i<line.length()){
+					if(!Alphabet.contains(line.charAt(i))){
+						Alphabet.add(line.charAt(i));
+					}
+					i++;
+					}
+				}
+        }
+		return Alphabet;
     }
 }
-
+class NFA{
+	public ArrayList<Integer> states = new ArrayList<>();
+	public ArrayList<Integer> acceptStates = new ArrayList<>();
+	public ArrayList<Transition> transitions = new ArrayList<>();
+	
+	public NFA(ArrayList<Integer> states, ArrayList<Integer> acceptStates, ArrayList<Transition> transitions){
+		this.states = states;
+		this.acceptStates = acceptStates;
+		this.transitions = transitions;
+	}
+	public ArrayList<Integer> getStates(){
+		return states;
+	}
+	public ArrayList<Integer> getAcceptStates(){
+		return acceptStates;
+	}
+	public ArrayList<Transition> getTransitions(){
+		return transitions;
+	}
+}
 class Transition{
     private final int stateFrom;
     private final int stateTo;
