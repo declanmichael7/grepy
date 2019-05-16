@@ -6,35 +6,185 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 
 public class Grepy{
     public static void main(String[] args){
-		ArrayList<Character> Alphabet = new ArrayList<>();
+		ArrayList<Character> alphabet = new ArrayList<>();
 		try {
-			Alphabet = Grepy.getAlphabet(args[1]);
+			alphabet = Grepy.getAlphabet(args[1]);
 		} catch(FileNotFoundException e) {
 			System.out.println("File Not Found");
 		} catch(IOException e) {
 			System.out.println("File Not Found");
 		}
-		System.out.println(Alphabet);
-		ArrayList<Transition> transitions = new ArrayList<>();
-		ArrayList<Integer> states = new ArrayList<>();
-		ArrayList<Integer> acceptStates = new ArrayList<>();
-		NFA nfa = new NFA(states, acceptStates, transitions);
+		NFA nfa;
 		nfa = Grepy.regexToNFA(args[0]);
-		System.out.println(nfa.getStates() + "\n" + nfa.getAcceptStates()); 
+		DFA dfa;
+		dfa = Grepy.nfaToDFA(nfa, alphabet);
+		//System.out.println(Grepy.findEps(nfa, 0));
+		System.out.println("DFA:");
+		System.out.println(dfa.startState + "\n" + dfa.getStates() + "\n" + dfa.getAcceptStates());
 		int i=0;
-		transitions = nfa.getTransitions();
-		while(i<transitions.size()){
+		ArrayList<DFATransition> DFAtransitions = dfa.getTransitions();
+		while(i<DFAtransitions.size()){
             System.out.println(
-                    transitions.get(i).getStateFrom() + "\t " +
-                    transitions.get(i).getStateTo() + "\t" +
-                    transitions.get(i).getCharacter());
+                    DFAtransitions.get(i).getStateFrom() + "\t " +
+                    DFAtransitions.get(i).getStateTo() + "\t" +
+                    DFAtransitions.get(i).getCharacter());
+			i++;
+        }
+		System.out.println("NFA:");
+		System.out.println(nfa.getStates() + "\n" + nfa.getAcceptStates()); 
+		i=0;
+		ArrayList<Transition> NFAtransitions = new ArrayList<>();
+		NFAtransitions = nfa.getTransitions();
+		while(i<NFAtransitions.size()){
+            System.out.println(
+                    NFAtransitions.get(i).getStateFrom() + "\t " +
+                    NFAtransitions.get(i).getStateTo() + "\t" +
+                    NFAtransitions.get(i).getCharacter());
 			i++;
         }
 		
     }
+	public static int findTransition(ArrayList<Transition> transitions, int state, Character c){
+		int n = 0;
+		int stateTo = -1;
+		while(n<transitions.size()){
+			if(transitions.get(n).getStateFrom() == state && transitions.get(n).getCharacter() == c){
+				return transitions.get(n).getStateTo();
+			}
+			n++;
+		}
+		return stateTo;
+	}
+	public static ArrayList<Integer> findEps(NFA nfa, int state){
+		ArrayList<Transition> NFAtransitions = nfa.getTransitions();
+		ArrayList<Integer> epsStates = new ArrayList<>();
+		epsStates.add(state);
+		int k=0;
+		boolean done = false;
+		int arraySize = 0;
+		while(!done){
+			if(k>=NFAtransitions.size()-1){
+				if(arraySize==epsStates.size()){
+					done = true;
+				}
+				else{
+					arraySize = epsStates.size();
+					k=0;
+				}				
+			}
+			if(epsStates.contains(NFAtransitions.get(k).getStateFrom()) && NFAtransitions.get(k).getCharacter() =='!'){
+				if(!epsStates.contains(NFAtransitions.get(k).getStateTo())){
+					epsStates.add(NFAtransitions.get(k).getStateTo());
+				}
+			}
+			k++;
+		}
+		Collections.sort(epsStates);
+		return epsStates;
+	}
+	public static DFA nfaToDFA(NFA nfa, ArrayList<Character> alphabet){
+
+		ArrayList<Transition> NFAtransitions = nfa.getTransitions();
+		ArrayList<Integer> NFAstates = nfa.getStates();
+		ArrayList<Integer> NFAacceptStates = nfa.getAcceptStates();
+		//DFA states are strings because I'm combining NFA states for the DFA states
+		ArrayList<DFATransition> DFAtransitions = new ArrayList<>();
+		ArrayList<String> DFAstates = new ArrayList<>();
+		ArrayList<String> DFAacceptStates = new ArrayList<>();
+		int m=0;
+		//Trap state. Anything in the alphabet that comes from Trap, goes to Trap
+		DFAstates.add("Trap");
+		while(m<alphabet.size()){
+			DFAtransitions.add(new DFATransition("Trap", "trap", alphabet.get(m)));
+			m++;
+		}
+		m=0;
+		ArrayList<Integer> epsStates = findEps(nfa, 0);
+	    String newState = "";
+		String startState;
+		if(epsStates.size()>=2){
+			int k=0;
+			boolean accept = false;
+			while(k<epsStates.size()){
+				if(NFAacceptStates.contains(epsStates.get(k))){
+					accept=true;
+				}
+				newState+= "c" + epsStates.get(k);
+			k++;
+			}
+			if(accept==true){
+				DFAacceptStates.add(newState);
+			}
+			DFAstates.add(newState);
+			startState = newState;
+			
+		}
+		else{
+			if(NFAacceptStates.contains(epsStates.get(0))){
+				DFAacceptStates.add(epsStates.get(0)+"");
+			}
+			DFAstates.add(epsStates.get(0)+"");
+			startState = newState;
+		}
+		int i=0;
+		int k=0;
+		int x=2;
+		do{
+			while(k<alphabet.size()){
+				ArrayList<Integer> resultStates = new ArrayList<>();
+				ArrayList<Integer> s = new ArrayList<>();
+				Character c = alphabet.get(k);
+				m=0;
+				while(m<epsStates.size()){
+					int j =0;
+					int state = epsStates.get(m);
+					boolean match = false;
+					while(j < NFAtransitions.size() && match == false){
+						Transition t = NFAtransitions.get(j);
+						if(t.getStateFrom() == state && t.getCharacter() == c){
+							resultStates.add(t.getStateTo());
+							match = true;
+						}
+						else{
+							j++;
+						}
+					}
+					m++;
+				}
+				int l=0;
+				while(l<resultStates.size()){
+					ArrayList<Integer> r =(findEps(nfa, resultStates.get(l)));
+					int p=0;
+					while(p<r.size()){
+						s.add(r.get(p));
+						p++;
+					}
+					l++;
+				}
+				if(s.size()>=2){
+					newState = "";
+					m=0;
+					while(m<s.size()){
+						newState+= "c" + s.get(m);
+					m++;
+					}
+					if(!DFAstates.contains(newState)){
+						DFAstates.add(newState);
+					}
+				}
+				k++;
+				s.clear();
+			}
+			x++;
+		}while(x<DFAstates.size());
+		
+	    DFA dfa = new DFA(DFAstates, DFAacceptStates, DFAtransitions, startState);
+		return dfa;
+	}
 	public static NFA regexToNFA(String regex){
 		ArrayList<Transition> transitions = new ArrayList<>();
         Transition transition;
@@ -219,6 +369,31 @@ public class Grepy{
 		return Alphabet;
     }
 }
+class DFA{
+	public ArrayList<String> states = new ArrayList<>();
+	public ArrayList<String> acceptStates = new ArrayList<>();
+	public ArrayList<DFATransition> transitions = new ArrayList<>();
+	public String startState = new String();
+	
+	public DFA(ArrayList<String> states, ArrayList<String> acceptStates, ArrayList<DFATransition> transitions, String startState){
+		this.states = states;
+		this.acceptStates = acceptStates;
+		this.transitions = transitions;
+		this.startState = startState;
+	}
+	public String getStartState(){
+		return startState;
+	}
+	public ArrayList<String> getStates(){
+		return states;
+	}
+	public ArrayList<String> getAcceptStates(){
+		return acceptStates;
+	}
+	public ArrayList<DFATransition> getTransitions(){
+		return transitions;
+	}
+}
 class NFA{
 	public ArrayList<Integer> states = new ArrayList<>();
 	public ArrayList<Integer> acceptStates = new ArrayList<>();
@@ -238,6 +413,30 @@ class NFA{
 	public ArrayList<Transition> getTransitions(){
 		return transitions;
 	}
+}
+class DFATransition{
+    private final String stateFrom;
+    private final String stateTo;
+    private final char character;
+
+    public DFATransition(String stateFrom, String stateTo, char character){
+        this.stateFrom = stateFrom;
+        this.stateTo = stateTo;
+        this.character = character;
+    }
+
+    public String getStateTo(){
+        return stateTo;
+    }
+
+    public String getStateFrom(){
+        return stateFrom;
+    }
+
+    public char getCharacter(){
+        return character;
+    }
+
 }
 class Transition{
     private final int stateFrom;
