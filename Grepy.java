@@ -24,7 +24,7 @@ public class Grepy{
 		dfa = Grepy.nfaToDFA(nfa, alphabet);
 		//System.out.println(Grepy.findEps(nfa, 0));
 		System.out.println("DFA:");
-		System.out.println(dfa.startState + "\n" + dfa.getStates() + "\n" + dfa.getAcceptStates());
+		System.out.println(dfa.getStartState() + "\n" + dfa.getStates() + "\n" + dfa.getAcceptStates());
 		int i=0;
 		ArrayList<DFATransition> DFAtransitions = dfa.getTransitions();
 		while(i<DFAtransitions.size()){
@@ -128,11 +128,11 @@ public class Grepy{
 				DFAacceptStates.add(epsStates.get(0)+"");
 			}
 			DFAstates.add(epsStates.get(0)+"");
-			startState = newState;
+			startState = epsStates.get(0)+"";
 		}
 		int i=0;
 		int k=0;
-		int x=2;
+		int x=1;
 		do{
 			while(k<alphabet.size()){
 				ArrayList<Integer> resultStates = new ArrayList<>();
@@ -165,21 +165,60 @@ public class Grepy{
 					}
 					l++;
 				}
+				int p = 0;
+				ArrayList<Integer> t = new ArrayList<>();
+				while(p<s.size()){
+					h=0;
+					int transition=-1;
+					boolean done = false;
+					while(h<alphabet.size()&&transition==-1){
+						transition = findTransition(NFAtransitions, s.get(p), alphabet.get(h));
+						h++;
+					}
+					if(transition!=-1){
+						ArrayList<Integer> q = findEps(nfa, transition);
+						m=0;
+						while(m<q.size()){
+							t.add(q.get(m));
+							m++;
+						}
+					}
+					p++;
+				}
 				if(s.size()>=2){
 					newState = "";
 					m=0;
+					boolean accept = false;
 					while(m<s.size()){
+						if(NFAacceptStates.contains(s.get(m))){
+							accept=true;
+						}
 						newState+= "c" + s.get(m);
 					m++;
 					}
 					if(!DFAstates.contains(newState)){
 						DFAstates.add(newState);
 					}
+					if(accept){
+						DFAacceptStates.add(newState);
+					}
+				}
+				else if(s.size()==1){
+					if(!DFAstates.contains(s.get(0)+"")){
+						DFAstates.add(s.get(0)+"");
+						if(NFAacceptStates.contains(s.get(0))){
+							DFAacceptStates.add(s.get(0)+"");
+						}
+					}
+				}
+				if(t.size()>0){
+					DFAstates.add(t.get(0)+"");
 				}
 				k++;
 				s.clear();
 			}
 			x++;
+			System.out.println(x +"\t"+DFAstates.size());
 		}while(x<DFAstates.size());
 		
 	    DFA dfa = new DFA(DFAstates, DFAacceptStates, DFAtransitions, startState);
